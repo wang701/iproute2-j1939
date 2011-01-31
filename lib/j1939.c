@@ -2,10 +2,24 @@
 #include <errno.h>
 #include <sys/types.h>
 #include <netinet/in.h>
+#include <endian.h>
 #include <linux/can/j1939.h>
 
 #include "utils.h"
 
+#ifndef htobe64
+# if __BYTE_ORDER == __LITTLE_ENDIAN
+#  define htobe64(x) __bswap_64 (x)
+#  define htole64(x) (x)
+#  define be64toh(x) __bswap_64 (x)
+#  define le64toh(x) (x)
+# else
+#  define htobe64(x) (x)
+#  define htole64(x) __bswap_64 (x)
+#  define be64toh(x) (x)
+#  define le64toh(x) __bswap_64 (x)
+# endif
+#endif
 /*
  * print J1939 name
  * for use from rt_addr_n2a
