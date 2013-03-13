@@ -27,6 +27,7 @@
 #include <string.h>
 #include <sys/ioctl.h>
 #include <linux/sockios.h>
+#include <linux/can.h>
 
 #include "rt_names.h"
 #include "utils.h"
@@ -79,6 +80,7 @@ void iplink_usage(void)
 	fprintf(stderr, "				   [ spoofchk { on | off} ] ] \n");
 	fprintf(stderr, "			  [ master DEVICE ]\n");
 	fprintf(stderr, "			  [ nomaster ]\n");
+	fprintf(stderr, "			  [ j1939 { on | off } ]\n");
 	fprintf(stderr, "       ip link show [ DEVICE | group GROUP ]\n");
 
 	if (iplink_have_newlink()) {
@@ -465,6 +467,12 @@ int iplink_parse(int argc, char **argv, struct iplink_req *req,
 				invarg("Invalid \"numrxqueues\" value\n", *argv);
 			addattr_l(&req->n, sizeof(*req), IFLA_NUM_RX_QUEUES,
 				  &numrxqueues, 4);
+		} else if (matches(*argv, "j1939") == 0) {
+			ret = j1939_link_args(argc, argv, &req->n, sizeof(*req));
+			if (ret < 0)
+				return ret;
+			argc -= ret;
+			argv += ret;
 		} else {
 			if (strcmp(*argv, "dev") == 0) {
 				NEXT_ARG();

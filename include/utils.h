@@ -112,6 +112,12 @@ int dnet_pton(int af, const char *src, void *addr);
 const char *ipx_ntop(int af, const void *addr, char *str, size_t len);
 int ipx_pton(int af, const char *src, void *addr);
 
+/* j1939 */
+extern const char *j1939_link_attrtop(struct rtattr *nla);
+
+extern int j1939_link_args(int argc, char *argv[],
+		struct nlmsghdr *msg, int msg_size);
+
 extern int __iproute2_hz_internal;
 extern int __get_hz(void);
 

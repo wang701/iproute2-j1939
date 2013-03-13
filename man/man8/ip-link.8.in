@@ -111,7 +111,8 @@ ip-link \- network device configuration
 .IR DEVICE
 .br
 .B nomaster
-.BR " }"
+.br
+.BR j1939 " { " on " | " off " }"
 
 
 .ti -8
@@ -329,6 +330,11 @@ set master device of the device (enslave device).
 .TP
 .BI nomaster
 unset master device of the device (release device).
+
+.TP
+.BR "j1939 on " or " j1939 off"
+Enable or disable SAE J1939 on the device. This will only
+work when the device is a CAN device.
 
 .PP
 .B Warning:
