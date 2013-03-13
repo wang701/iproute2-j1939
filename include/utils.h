@@ -96,8 +96,15 @@ extern __u8* hexstring_a2n(const char *str, __u8 *buf, int blen);
 
 extern const char *format_host(int af, int len, const void *addr,
 			       char *buf, int buflen);
-extern const char *rt_addr_n2a(int af, int len, const void *addr,
-			       char *buf, int buflen);
+/* 'address with protocol' n2a */
+extern const char *rt_addr_proto_n2a(int af, int protocol, int len,
+		const void *addr, char *buf, int buflen);
+static inline const char *rt_addr_n2a(int af, int len, const void *addr,
+		char *buf, int buflen)
+{
+	return rt_addr_proto_n2a(af, 0, len, addr, buf, buflen);
+
+}
 
 void missarg(const char *) __attribute__((noreturn));
 void invarg(const char *, const char *) __attribute__((noreturn));

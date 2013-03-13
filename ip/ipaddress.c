@@ -28,6 +28,7 @@
 #include <linux/netdevice.h>
 #include <linux/if_arp.h>
 #include <linux/sockios.h>
+#include <linux/can.h>
 
 #include "rt_names.h"
 #include "utils.h"
@@ -483,6 +484,17 @@ int print_linkinfo(const struct sockaddr_nl *who,
 	}
 
 	fprintf(fp, "\n");
+
+	if (do_link && tb[IFLA_AF_SPEC]) {
+		struct rtattr *af[AF_MAX];
+
+		parse_rtattr_nested(af, AF_MAX, tb[IFLA_AF_SPEC]);
+		if (af[AF_CAN]) {
+			struct rtattr *prot[CAN_NPROTO];
+
+			parse_rtattr_nested(prot, CAN_NPROTO, af[AF_CAN]);
+		}
+	}
 	fflush(fp);
 	return 0;
 }
@@ -507,6 +519,13 @@ static int set_lifetime(unsigned int *lifetime, char *argv)
 	return 0;
 }
 
+static const int af_use_prefix[AF_MAX] = {
+	[AF_INET] = 1,
+	[AF_INET6] = 1,
+	[AF_DECnet] = 1,
+	[AF_IPX] = 1,
+};
+
 int print_addrinfo(const struct sockaddr_nl *who, struct nlmsghdr *n,
 		   void *arg)
 {
@@ -514,6 +533,7 @@ int print_addrinfo(const struct sockaddr_nl *who, struct nlmsghdr *n,
 	struct ifaddrmsg *ifa = NLMSG_DATA(n);
 	int len = n->nlmsg_len;
 	int deprecated = 0;
+	int protocol = 0;
 	/* Use local copy of ifa_flags to not interfere with filtering code */
 	unsigned int ifa_flags;
 	struct rtattr * rta_tb[IFA_MAX+1];
@@ -533,10 +553,12 @@ int print_addrinfo(const struct sockaddr_nl *who, struct nlmsghdr *n,
 
 	parse_rtattr(rta_tb, IFA_MAX, IFA_RTA(ifa), n->nlmsg_len - NLMSG_LENGTH(sizeof(*ifa)));
 
-	if (!rta_tb[IFA_LOCAL])
-		rta_tb[IFA_LOCAL] = rta_tb[IFA_ADDRESS];
-	if (!rta_tb[IFA_ADDRESS])
-		rta_tb[IFA_ADDRESS] = rta_tb[IFA_LOCAL];
+	if (af_use_prefix[ifa->ifa_family]) {
+		if (!rta_tb[IFA_LOCAL])
+			rta_tb[IFA_LOCAL] = rta_tb[IFA_ADDRESS];
+		if (!rta_tb[IFA_ADDRESS])
+			rta_tb[IFA_ADDRESS] = rta_tb[IFA_LOCAL];
+	}
 
 	if (filter.ifindex && filter.ifindex != ifa->ifa_index)
 		return 0;
@@ -598,38 +620,61 @@ int print_addrinfo(const struct sockaddr_nl *who, struct nlmsghdr *n,
 		fprintf(fp, "    dnet ");
 	else if (ifa->ifa_family == AF_IPX)
 		fprintf(fp, "     ipx ");
+	else if (ifa->ifa_family == AF_CAN) {
+		/* ifa->ifa_prefixlen is abused for protocol number */
+		const char *sprotocol;
+		char num[16];
+
+		/* 1st: set protocol, as this is rather tricky */
+		protocol = ifa->ifa_prefixlen;
+
+		/* 2nd: set label */
+		switch (protocol) {
+		default:
+			sprintf(num, "%i", ifa->ifa_prefixlen);
+			sprotocol = num;
+			break;
+		}
+		fprintf(fp, "    can-%s ", sprotocol);
+	}
 	else
 		fprintf(fp, "    family %d ", ifa->ifa_family);
 
 	if (rta_tb[IFA_LOCAL]) {
-		fprintf(fp, "%s", rt_addr_n2a(ifa->ifa_family,
+		fprintf(fp, "%s", rt_addr_proto_n2a(ifa->ifa_family, protocol,
 					      RTA_PAYLOAD(rta_tb[IFA_LOCAL]),
 					      RTA_DATA(rta_tb[IFA_LOCAL]),
 					      abuf, sizeof(abuf)));
 
 		if (rta_tb[IFA_ADDRESS] == NULL ||
 		    memcmp(RTA_DATA(rta_tb[IFA_ADDRESS]), RTA_DATA(rta_tb[IFA_LOCAL]), 4) == 0) {
-			fprintf(fp, "/%d ", ifa->ifa_prefixlen);
 		} else {
-			fprintf(fp, " peer %s/%d ",
-				rt_addr_n2a(ifa->ifa_family,
+			fprintf(fp, " peer %s",
+				rt_addr_proto_n2a(ifa->ifa_family, protocol,
 					    RTA_PAYLOAD(rta_tb[IFA_ADDRESS]),
 					    RTA_DATA(rta_tb[IFA_ADDRESS]),
-					    abuf, sizeof(abuf)),
-				ifa->ifa_prefixlen);
+					    abuf, sizeof(abuf)));
 		}
+		if (af_use_prefix[ifa->ifa_family])
+			fprintf(fp, "/%d", ifa->ifa_prefixlen);
+		fprintf(fp, " ");
+	} else if (rta_tb[IFA_ADDRESS]) {
+		fprintf(fp, "peer %s ", rt_addr_proto_n2a(ifa->ifa_family, protocol,
+					RTA_PAYLOAD(rta_tb[IFA_ADDRESS]),
+					RTA_DATA(rta_tb[IFA_ADDRESS]),
+					abuf, sizeof(abuf)));
 	}
 
 	if (rta_tb[IFA_BROADCAST]) {
 		fprintf(fp, "brd %s ",
-			rt_addr_n2a(ifa->ifa_family,
+			rt_addr_proto_n2a(ifa->ifa_family, protocol,
 				    RTA_PAYLOAD(rta_tb[IFA_BROADCAST]),
 				    RTA_DATA(rta_tb[IFA_BROADCAST]),
 				    abuf, sizeof(abuf)));
 	}
 	if (rta_tb[IFA_ANYCAST]) {
 		fprintf(fp, "any %s ",
-			rt_addr_n2a(ifa->ifa_family,
+			rt_addr_proto_n2a(ifa->ifa_family, protocol,
 				    RTA_PAYLOAD(rta_tb[IFA_ANYCAST]),
 				    RTA_DATA(rta_tb[IFA_ANYCAST]),
 				    abuf, sizeof(abuf)));
