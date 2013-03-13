@@ -120,8 +120,12 @@ const char *ipx_ntop(int af, const void *addr, char *str, size_t len);
 int ipx_pton(int af, const char *src, void *addr);
 
 /* j1939 */
+extern const char *j1939_ntop(int af, const void *addr, size_t vlen,
+		char *str, size_t len);
 extern const char *j1939_link_attrtop(struct rtattr *nla);
 
+extern int j1939_addr_args(int argc, char *argv[],
+		struct nlmsghdr *msg, int msg_size);
 extern int j1939_link_args(int argc, char *argv[],
 		struct nlmsghdr *msg, int msg_size);
 

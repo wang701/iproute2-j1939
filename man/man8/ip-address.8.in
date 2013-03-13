@@ -38,7 +38,9 @@ ip-address \- protocol address management
 .B  label
 .IR STRING " ] [ "
 .B  scope
-.IR SCOPE-ID " ]"
+.IR SCOPE-ID " ] [ "
+.B  j1939
+.IR IFADDRJ1939 " ] "
 
 .ti -8
 .IR SCOPE-ID " := "
@@ -52,6 +54,15 @@ ip-address \- protocol address management
 .IR FLAG " := "
 .RB "[ " permanent " | " dynamic " | " secondary " | " primary " | "\
 tentative " | " deprecated " | " dadfailed " | " temporary " ]"
+
+.ti -8
+.IR J1939IFADDR " := [ " SA " ] [ "
+.B  name
+.IR " NODENAME " ]
+.br
+.IR SA " := " U8
+.br
+.IR NODENAME " := " U64
 
 .SH "DESCRIPTION"
 The

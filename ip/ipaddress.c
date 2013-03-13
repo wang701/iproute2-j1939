@@ -77,6 +77,8 @@ static void usage(void)
 	fprintf(stderr, "IFADDR := PREFIX | ADDR peer PREFIX\n");
 	fprintf(stderr, "          [ broadcast ADDR ] [ anycast ADDR ]\n");
 	fprintf(stderr, "          [ label STRING ] [ scope SCOPE-ID ]\n");
+	fprintf(stderr, "          | j1939 J1939IFADDR\n");
+	fprintf(stderr, "          \n");
 	fprintf(stderr, "SCOPE-ID := [ host | link | global | NUMBER ]\n");
 	fprintf(stderr, "FLAG-LIST := [ FLAG-LIST ] FLAG\n");
 	fprintf(stderr, "FLAG  := [ permanent | dynamic | secondary | primary |\n");
@@ -86,6 +88,10 @@ static void usage(void)
 	fprintf(stderr, "CONFFLAG  := [ home | nodad ]\n");
 	fprintf(stderr, "LIFETIME := [ valid_lft LFT ] [ preferred_lft LFT ]\n");
 	fprintf(stderr, "LFT := forever | SECONDS\n");
+	fprintf(stderr, "          \n");
+	fprintf(stderr, "J1939IFADDR := [SA] [ name NODENAME ]\n");
+	fprintf(stderr, "SA := U8\n");
+	fprintf(stderr, "NODENAME := U64\n");
 
 	exit(-1);
 }
@@ -493,6 +499,8 @@ int print_linkinfo(const struct sockaddr_nl *who,
 			struct rtattr *prot[CAN_NPROTO];
 
 			parse_rtattr_nested(prot, CAN_NPROTO, af[AF_CAN]);
+			if (prot[CAN_J1939])
+				fprintf(fp, "    %s\n", j1939_link_attrtop(prot[CAN_J1939]));
 		}
 	}
 	fflush(fp);
@@ -630,6 +638,9 @@ int print_addrinfo(const struct sockaddr_nl *who, struct nlmsghdr *n,
 
 		/* 2nd: set label */
 		switch (protocol) {
+		case CAN_J1939:
+			sprotocol = "j1939";
+			break;
 		default:
 			sprintf(num, "%i", ifa->ifa_prefixlen);
 			sprotocol = num;
@@ -1336,6 +1347,14 @@ static int ipaddr_modify(int cmd, int flags, int argc, char **argv)
 			req.ifa.ifa_flags |= IFA_F_HOMEADDRESS;
 		} else if (strcmp(*argv, "nodad") == 0) {
 			req.ifa.ifa_flags |= IFA_F_NODAD;
+		} else if (matches(*argv, "j1939") == 0) {
+			int ret;
+
+			ret = j1939_addr_args(argc, argv, &req.n, sizeof(req));
+			if (ret < 0)
+				return ret;
+			argc -= ret;
+			argv += ret;
 		} else {
 			if (strcmp(*argv, "local") == 0) {
 				NEXT_ARG();

@@ -7,6 +7,84 @@
 #include "utils.h"
 
 /*
+ * print J1939 name
+ * for use from rt_addr_n2a
+ */
+const char *j1939_ntop(int af, const void *vaddr, size_t vlen,
+		char *str, size_t len)
+{
+	struct rtattr *tb[IFA_J1939_MAX];
+	int strdone = 0;
+
+	/* cast vaddr to non-const pointer */
+	parse_rtattr(tb, IFA_J1939_MAX-1, (void *)vaddr, vlen);
+	if (tb[IFA_J1939_ADDR]) {
+		strdone += sprintf(&str[strdone], "0x%02x",
+				*(uint8_t *)RTA_DATA(tb[IFA_J1939_ADDR]));
+		if (tb[IFA_J1939_NAME])
+			str[strdone++] = ' ';
+	}
+	if (tb[IFA_J1939_NAME])
+		strdone += sprintf(&str[strdone], "name %016llx",
+				(unsigned long long)be64toh(*(uint64_t *)RTA_DATA(tb[IFA_J1939_NAME])));
+	errno = 0;
+	return str;
+}
+
+/*
+ * fill an ifaddr message from program arguments
+ */
+int j1939_addr_args(int argc, char *argv[], struct nlmsghdr *msg, int msg_size)
+{
+	int saved_argc = argc;
+	struct ifaddrmsg *ifa = (void *)&msg[1];
+	struct rtattr *local;
+
+	if (ifa->ifa_family == AF_UNSPEC)
+		ifa->ifa_family = AF_CAN;
+	else {
+		fprintf(stderr, "j1939 only allowed for AF_CAN\n");
+		return -1;
+	}
+	if (!ifa->ifa_prefixlen)
+		ifa->ifa_prefixlen = CAN_J1939;
+	else {
+		fprintf(stderr, "CAN protocol %i already specified",
+				ifa->ifa_prefixlen);
+		return -1;
+	}
+	NEXT_ARG();
+	/* j1939 SA & NAME never need to be specified together */
+	if (matches(*argv, "name") == 0) {
+		uint64_t name;
+
+		NEXT_ARG();
+		name = htobe64(strtoull(*argv, 0, 16));
+		if (!name) {
+			fprintf(stderr, "0 name is not valid\n");
+			return -1;
+		}
+		local = addattr_nest(msg, msg_size, IFA_LOCAL);
+		addattr_l(msg, msg_size, IFA_J1939_NAME, &name, sizeof(name));
+		addattr_nest_end(msg, local);
+	} else {
+		unsigned int laddr;
+		uint8_t addr;
+
+		addr = laddr = strtoul(*argv, 0, 0);
+		if (laddr >= 0xfe) {
+			fprintf(stderr, "address '%s' not valid\n", *argv);
+			return -1;
+		}
+		local = addattr_nest(msg, msg_size, IFA_LOCAL);
+		addattr_l(msg, msg_size, IFA_J1939_ADDR, &addr, sizeof(addr));
+		addattr_nest_end(msg, local);
+	}
+
+	return saved_argc - argc;
+}
+
+/*
  * fill an link_af message from program arguments
  */
 int j1939_link_args(int argc, char *argv[], struct nlmsghdr *msg, int msg_size)

@@ -536,6 +536,8 @@ const char *rt_addr_proto_n2a(int af, int protocol, int len, const void *addr,
 	}
 	case AF_CAN:
 		switch (protocol) {
+		case CAN_J1939:
+			return j1939_ntop(af, addr, len, buf, buflen);
 		}
 	default:
 		return "???";
