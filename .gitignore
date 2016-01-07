@@ -31,3 +31,7 @@ series
 .gdbinit
 .gdb_history
 *.gdb
+
+# for genereted binaries ad libs
+libs/
+obj/
