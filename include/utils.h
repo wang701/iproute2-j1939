@@ -96,8 +96,15 @@ extern __u8* hexstring_a2n(const char *str, __u8 *buf, int blen);
 
 extern const char *format_host(int af, int len, const void *addr,
 			       char *buf, int buflen);
-extern const char *rt_addr_n2a(int af, int len, const void *addr,
-			       char *buf, int buflen);
+/* 'address with protocol' n2a */
+extern const char *rt_addr_proto_n2a(int af, int protocol, int len,
+		const void *addr, char *buf, int buflen);
+static inline const char *rt_addr_n2a(int af, int len, const void *addr,
+		char *buf, int buflen)
+{
+	return rt_addr_proto_n2a(af, 0, len, addr, buf, buflen);
+
+}
 
 void missarg(const char *) __attribute__((noreturn));
 void invarg(const char *, const char *) __attribute__((noreturn));
@@ -111,6 +118,16 @@ int dnet_pton(int af, const char *src, void *addr);
 
 const char *ipx_ntop(int af, const void *addr, char *str, size_t len);
 int ipx_pton(int af, const char *src, void *addr);
+
+/* j1939 */
+extern const char *j1939_ntop(int af, const void *addr, size_t vlen,
+		char *str, size_t len);
+extern const char *j1939_link_attrtop(struct rtattr *nla);
+
+extern int j1939_addr_args(int argc, char *argv[],
+		struct nlmsghdr *msg, int msg_size);
+extern int j1939_link_args(int argc, char *argv[],
+		struct nlmsghdr *msg, int msg_size);
 
 extern int __iproute2_hz_internal;
 extern int __get_hz(void);
